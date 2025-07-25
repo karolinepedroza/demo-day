@@ -6,7 +6,7 @@ RUN pip install --no-cache-dir --upgrade pip
 RUN python -m venv .venv
 
 COPY pyproject.toml uv.lock ./
-COPY app/ ./app
+COPY src/app/ ./app
 
 RUN . .venv/bin/activate && pip install --upgrade pip && pip install .
 
