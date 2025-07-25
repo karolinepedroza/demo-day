@@ -1,0 +1,116 @@
+name: CI/CD DemoDay
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install project dependencies
+        run: |
+          cd demo_day_project
+          pip install --upgrade pip
+          pip install .
+      
+      - name: Lint com ruff
+        run: |
+          cd demo_day_project
+          pip install ruff
+          ruff check .
+      
+      - name: Run tests
+        run: |
+          cd demo_day_project
+          pip install pytest
+          pytest --maxfail=1 --disable-warnings -q
+
+  build-docker:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build Docker image
+        run: docker build -t demo-day-app:latest .
+        working-directory: ./demo_day_project
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Push image to Docker Hub
+        run: |
+          docker tag demo-day-app:latest ${{ secrets.DOCKER_USER }}/demo-day-app:latest
+          docker push ${{ secrets.DOCKER_USER }}/demo-day-app:latest
+
+  ansible-check:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python for Ansible
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Ansible Syntax Check
+        run: ansible-playbook --syntax-check demo_day_project/ansible/playbook.yml
+
+  terraform-plan:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Terraform Init
+        working-directory: demo_day_project/terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: demo_day_project/terraform
+        run: terraform plan
+
+  smoke-test:
+    needs: build-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for container startup
+        run: sleep 30
+
+      - name: Run smoke test
+        run: |
+          # Inicia o container mapeando a porta 8000 (conforme exposta no Dockerfile)
+          CONTAINER_ID=$(docker run --rm -d -p 8000:8000 ${{ secrets.DOCKER_USER }}/demo-day-app:latest)
+          echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
+          sleep 5
+          pip install requests
+          python - <<EOF
+          import requests
+          resp = requests.get('http://localhost:8000/health')
+          if resp.status_code != 200:
+              print('Smoke test failed')
+              exit(1)
+          EOF
+          
+      - name: Stop container
+        run: docker stop $CONTAINER_ID || true
