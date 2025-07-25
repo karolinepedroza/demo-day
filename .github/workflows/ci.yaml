@@ -2,7 +2,7 @@ name: CI/CD DemoDay
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-and-test:
@@ -13,23 +13,20 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install project dependencies
         run: |
-          cd demo_day_project
           pip install --upgrade pip
           pip install .
-      
+
       - name: Lint com ruff
         run: |
-          cd ./demo_day_project
           pip install ruff
           ruff check .
-      
+
       - name: Run tests
         run: |
-          cd ./demo_day_project
           pip install pytest
           pytest --maxfail=1 --disable-warnings -q
 
@@ -41,7 +38,6 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t demo-day-app:latest .
-        working-directory: ./demo_day_project
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -63,13 +59,13 @@ jobs:
       - name: Setup Python for Ansible
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install Ansible
         run: pip install ansible
 
       - name: Ansible Syntax Check
-        run: ansible-playbook --syntax-check demo_day_project/ansible/playbook.yml
+        run: ansible-playbook --syntax-check ansible/playbook.yml
 
   terraform-plan:
     needs: build-and-test
@@ -83,11 +79,11 @@ jobs:
           terraform_version: "1.5.0"
 
       - name: Terraform Init
-        working-directory: demo_day_project/terraform
+        working-directory: terraform
         run: terraform init
 
       - name: Terraform Plan
-        working-directory: demo_day_project/terraform
+        working-directory: terraform
         run: terraform plan
 
   smoke-test:
@@ -110,6 +106,6 @@ jobs:
               print('Smoke test failed')
               exit(1)
           EOF
-          
+
       - name: Stop container
         run: docker stop $CONTAINER_ID || true
