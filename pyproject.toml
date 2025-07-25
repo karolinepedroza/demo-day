@@ -15,3 +15,7 @@ dev = [
     "pytest>=8.4.1",
     "ruff>=0.12.3",
 ]
+
+[tool.setuptools]
+packages = ["app"]
+package-dir = {"" = "src"}
