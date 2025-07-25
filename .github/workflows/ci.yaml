@@ -23,13 +23,13 @@ jobs:
       
       - name: Lint com ruff
         run: |
-          cd demo_day_project
+          cd ./demo_day_project
           pip install ruff
           ruff check .
       
       - name: Run tests
         run: |
-          cd demo_day_project
+          cd ./demo_day_project
           pip install pytest
           pytest --maxfail=1 --disable-warnings -q
 
@@ -99,7 +99,6 @@ jobs:
 
       - name: Run smoke test
         run: |
-          # Inicia o container mapeando a porta 8000 (conforme exposta no Dockerfile)
           CONTAINER_ID=$(docker run --rm -d -p 8000:8000 ${{ secrets.DOCKER_USER }}/demo-day-app:latest)
           echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
           sleep 5
